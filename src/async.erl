@@ -33,7 +33,7 @@
 
 % application
 start(_Type, _Args) ->
-	Multiplier = application:get_env(asysnc, processes_by_core, 5),
+	Multiplier = application:get_env(async, processes_by_core, 5),
 	WorkerCount = erlang:system_info(schedulers) * Multiplier,
 	worker_pool_sup:start_pool(?MODULE, WorkerCount, {?MODULE, start_link, []}).
 
