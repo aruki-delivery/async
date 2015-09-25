@@ -28,7 +28,7 @@ To change the default value, set value of the property "processes_by_core" on yo
 ```erlang
 [
 {async, [
-	{processes_by_core, "5}
+	{processes_by_core, 5}
 	]
 }
 ].
