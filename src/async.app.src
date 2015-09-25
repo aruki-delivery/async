@@ -20,10 +20,12 @@
 	{modules, [
 	]},
 	{registered, [ 
+		async
 	]},
 	{applications, [
 		kernel, 
-		stdlib
+		stdlib,
+		worker_pool
 	]},
 	{mod, {async, []}},
 	{env, [
