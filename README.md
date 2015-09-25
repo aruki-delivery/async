@@ -49,19 +49,19 @@ ok = application:start(async).
 Using async
 -----------
 
-1. Execution of anonymous functions.
+* Execution of anonymous functions.
 ```erlang
 async:run(fun() ->
 		io:format("Hello from ~p~n", [self()])
 	end).
 ```
 
-2. Execution of function using function references (i.e. fun FunctionName/Arity).
+* Execution of function using function references (i.e. fun FunctionName/Arity).
 ```erlang
 async:run(fun io:format/2, ["Hello from ~p~n", [self()]]).
 ```
 
-3. Execution of function by providing the 3 parameters; ModuleName, FunctionName and Arguments.
+* Execution of function by providing the 3 parameters; ModuleName, FunctionName and Arguments.
 ```erlang
 async:run(io, format, ["Hello from ~p~n", [self()]]).
 ```
