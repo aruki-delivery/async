@@ -21,7 +21,7 @@ Using rebar:
 Configuration
 -------------
 
-Async provides a parameter to specify the number of background process for each CPU core (the default value is 5, i.e. in a system with 2 cores the system will start 2 * 5 = 10 process).
+Async provides a parameter to specify the number of background process for each CPU core (the default value is 1, i.e. in a system with 2 cores the system will start 2 * 1 = 2 process).
 
 To change the default value, set value of the property "processes_by_core" on your config file.
 

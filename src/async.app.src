@@ -29,6 +29,6 @@
 	]},
 	{mod, {async, []}},
 	{env, [
-		{processes_by_core, 5}
+		{processes_by_core, 1}
 	]}
 ]}.
