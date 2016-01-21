@@ -87,10 +87,7 @@ system_continue(Parent, Debug, State) -> loop(Parent, Debug, State).
 system_terminate(Reason, _Parent, _Debug, _State) -> exit(Reason).
 system_code_change(State, _Module, _OldVsn, _Extra) -> {ok, State}.
 
-process(Request, _State) ->
-	case Request of
-		{run, Fun} -> Fun();
-		{run, Fun, Args} ->	apply(Fun, Args);
-		{run, Module, Function, Args} -> apply(Module, Function, Args);
-		_ -> ok
-	end.
+process({run, Fun}, _State) -> Fun();
+process({run, Fun, Args}, _State) -> apply(Fun, Args);
+process({run, Module, Function, Args}, _State) -> apply(Module, Function, Args);
+process(_Request, _State) -> ok.
