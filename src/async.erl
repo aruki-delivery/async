@@ -33,7 +33,8 @@
 
 -export([run/1,
 	run/2,
-	run/3]).
+	run/3,
+	run/4]).
 	
 -export([start_pool/2]).
 
@@ -54,19 +55,21 @@ start_link() ->
 start_pool(PoolName, WorkerCount) when is_atom(PoolName), is_integer(WorkerCount) ->
 	worker_pool_sup:start_pool(PoolName, WorkerCount, {?MODULE, start_link, []}).
 
-run(Fun) when is_function(Fun, 0) -> 
-	?MODULE ! {run, Fun},
-	ok.
+run(Fun) when is_function(Fun, 0) -> run(?MODULE, Fun).
 
-run(Fun, Args) when is_function(Fun) 
-		andalso is_list(Args) -> 
-	?MODULE ! {run, Fun, Args},
-	ok.
+run(PoolName, Fun) when is_atom(PoolName), is_function(Fun, 0) -> 
+	PoolName ! {run, Fun},
+	ok;
+run(Fun, Args) when is_function(Fun), is_list(Args) -> run(?MODULE, Fun, Args).
 
-run(Module, Function, Args) when is_atom(Module)
-		andalso is_atom(Function)
-		andalso is_list(Args) ->
-	?MODULE ! {run, Module, Function, Args},
+run(PoolName, Fun, Args) when is_atom(PoolName), is_function(Fun), is_list(Args) -> 
+	PoolName ! {run, Fun, Args},
+	ok;
+run(Module, Function, Args) when is_atom(Module), is_atom(Function), is_list(Args) ->
+	run(?MODULE, Module, Function, Args).
+
+run(PoolName, Module, Function, Args) when is_atom(PoolName), is_atom(Module), is_atom(Function), is_list(Args) ->
+	PoolName ! {run, Module, Function, Args},
 	ok.
 
 %% ====================================================================
