@@ -65,3 +65,15 @@ async:run(fun io:format/2, ["Hello from ~p~n", [self()]]).
 ```erlang
 async:run(io, format, ["Hello from ~p~n", [self()]]).
 ```
+
+
+Creating custom pools
+---------------------
+
+Async provides a function to create custom pools.
+
+```erlang
+PoolName = pool_name.
+PoolSize = 5.
+async:start_pool(PoolName, PoolSize).
+```
