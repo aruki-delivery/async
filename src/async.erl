@@ -1,5 +1,5 @@
 %%
-%% Copyright 2015 Joaquim Rocha <jrocha@gmailbox.org>
+%% Copyright 2015-16 Joaquim Rocha <jrocha@gmailbox.org>
 %% 
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -34,12 +34,14 @@
 -export([run/1,
 	run/2,
 	run/3]).
+	
+-export([start_pool/2]).
 
 % application
 start(_Type, _Args) ->
 	{ok, Multiplier} = application:get_env(processes_by_core),
 	WorkerCount = erlang:system_info(schedulers) * Multiplier,
-	worker_pool_sup:start_pool(?MODULE, WorkerCount, {?MODULE, start_link, []}).
+	start_pool(?MODULE, WorkerCount).
 
 stop(_State) -> ok.
 
@@ -48,6 +50,9 @@ start_link() ->
 	proc_lib:start_link(?MODULE, init, [self()]).
 
 % functions
+
+start_pool(PoolName, WorkerCount) when is_atom(PoolName), is_integer(WorkerCount) ->
+	worker_pool_sup:start_pool(PoolName, WorkerCount, {?MODULE, start_link, []}).
 
 run(Fun) when is_function(Fun, 0) -> 
 	?MODULE ! {run, Fun},
