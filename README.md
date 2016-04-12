@@ -76,4 +76,12 @@ Async provides a function to create custom pools.
 PoolName = pool_name.
 PoolSize = 5.
 async:start_pool(PoolName, PoolSize).
+
+async:run(PoolName, fun() ->
+		io:format("Hello from ~p~n", [self()])
+	end).
+	
+async:run(PoolName, fun io:format/2, ["Hello from ~p~n", [self()]]).	
+	
+async:run(PoolName, io, format, ["Hello from ~p~n", [self()]]).
 ```
