@@ -87,7 +87,7 @@ loop(Parent, Debug, State) ->
 		{system, From, Request} ->
 			sys:handle_system_msg(Request, From, Parent, ?MODULE, Debug, State);
 		Request ->
-			process(Request, State),
+			catch(process(Request, State)),
 			loop(Parent, Debug, State)
 	end.
 
