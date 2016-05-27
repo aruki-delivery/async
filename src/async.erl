@@ -83,19 +83,22 @@ init(Parent) ->
 	loop(Parent, Debug, State).
 
 loop(Parent, Debug, State) ->
-	receive
-		{system, From, Request} ->
-			sys:handle_system_msg(Request, From, Parent, ?MODULE, Debug, State);
-		Request ->
-			catch(process(Request, State)),
-			loop(Parent, Debug, State)
-	end.
-
-system_continue(Parent, Debug, State) -> loop(Parent, Debug, State).
-system_terminate(Reason, _Parent, _Debug, _State) -> exit(Reason).
-system_code_change(State, _Module, _OldVsn, _Extra) -> {ok, State}.
+	Msg = receive
+		Input -> Input
+	end,
+	handle_msg(Msg, Parent, Debug, State).
+	
+handle_msg({system, From, Request}, Parent, Debug, State) -> 
+	sys:handle_system_msg(Request, From, Parent, ?MODULE, Debug, State);
+handle_msg(Msg, Parent, Debug, State) ->
+	catch(process(Msg, State)),
+	loop(Parent, Debug, State).
 
 process({run, Fun}, _State) -> Fun();
 process({run, Fun, Args}, _State) -> apply(Fun, Args);
 process({run, Module, Function, Args}, _State) -> apply(Module, Function, Args);
-process(_Request, _State) -> ok.
+process(_Msg, _State) -> ok.
+
+system_continue(Parent, Debug, State) -> loop(Parent, Debug, State).
+system_terminate(Reason, _Parent, _Debug, _State) -> exit(Reason).
+system_code_change(State, _Module, _OldVsn, _Extra) -> {ok, State}.
