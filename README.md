@@ -21,7 +21,7 @@ Using rebar:
 Configuration
 -------------
 
-Async provides a parameter to specify the number of background process for each CPU core (the default value is 1, i.e. in a system with 2 cores the system will start 2 * 1 = 2 process).
+Async provides a parameter to specify the number of background process for each CPU core (the default value is 1, i.e. in a system with 2 cores the system will start 2 * 1 = 2 process for each job queue).
 
 To change the default value, set value of the property "processes_by_core" on your config file.
 
@@ -38,7 +38,7 @@ To change the default value, set value of the property "processes_by_core" on yo
 Starting async
 --------------
 
-Async worker pool is created automatically when the application starts.
+Async default job queue is created automatically on the first job.
 
 
 ```erlang
@@ -56,32 +56,22 @@ async:run(fun() ->
 	end).
 ```
 
-* Execution of function using function references (i.e. fun FunctionName/Arity).
-```erlang
-async:run(fun io:format/2, ["Hello from ~p~n", [self()]]).
-```
-
 * Execution of function by providing the 3 parameters; ModuleName, FunctionName and Arguments.
 ```erlang
 async:run(io, format, ["Hello from ~p~n", [self()]]).
 ```
 
 
-Creating custom pools
----------------------
+Creating custom queues
+----------------------
 
-Async provides a function to create custom pools.
+Async automatically creates custom job queues on the first job submission.
 
 ```erlang
-PoolName = pool_name.
-PoolSize = 5.
-async:start_pool(PoolName, PoolSize).
-
-async:run(PoolName, fun() ->
+async:run(test_job_queue, fun() ->
 		io:format("Hello from ~p~n", [self()])
 	end).
+
 	
-async:run(PoolName, fun io:format/2, ["Hello from ~p~n", [self()]]).	
-	
-async:run(PoolName, io, format, ["Hello from ~p~n", [self()]]).
+async:run(test_job_queue, io, format, ["Hello from ~p~n", [self()]]).
 ```

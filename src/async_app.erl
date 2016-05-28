@@ -1,5 +1,5 @@
 %%
-%% Copyright 2015-16 Joaquim Rocha <jrocha@gmailbox.org>
+%% Copyright 2016 Joaquim Rocha <jrocha@gmailbox.org>
 %% 
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -14,20 +14,23 @@
 %% limitations under the License.
 %%
 
-{application, async, [
-	{description, "Asynchronous function execution"},
-	{vsn, "0.5.0"},
-	{modules, [
-	]},
-	{registered, [ 
-		async
-	]},
-	{applications, [
-		kernel, 
-		stdlib
-	]},
-	{mod, {async_app, []}},
-	{env, [
-		{processes_by_core, 1}
-	]}
-]}.
+-module(async_app).
+
+-behaviour(application).
+
+%% ====================================================================
+%% API functions
+%% ====================================================================
+-export([start/2, stop/1]).
+
+start(_Type, _StartArgs) ->
+	{ok, Pid} = async_sup:start_link(),
+	{ok, Pid}.
+
+stop(_State) ->
+	ok.
+
+%% ====================================================================
+%% Internal functions
+%% ====================================================================
+
