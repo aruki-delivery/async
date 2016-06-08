@@ -1,6 +1,6 @@
 %%
 %% Copyright 2016 Joaquim Rocha <jrocha@gmailbox.org>
-%% 
+%%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
 %% You may obtain a copy of the License at
@@ -14,7 +14,7 @@
 %% limitations under the License.
 %%
 
--module(async_sup).
+-module(async_queue_sup).
 
 -behaviour(supervisor).
 
@@ -24,19 +24,24 @@
 %% API functions
 %% ====================================================================
 -export([start_link/0]).
+-export([start_queue/1]).
+
+-define(SERVER, {local, ?MODULE}).
 
 start_link() ->
-	supervisor:start_link(?MODULE, []).
+  supervisor:start_link(?SERVER, ?MODULE, []).
+
+start_queue(JobQueue) ->
+  supervisor:start_child(?MODULE, [JobQueue]).
 
 %% ====================================================================
 %% Behavioural functions
 %% ====================================================================
 
-%% init/1
 init([]) ->
-	QueueSup = {async_queue_sup, {async_queue_sup, start_link, []}, permanent, infinity, supervisor, [async_queue_sup]},
-	Procs = [QueueSup],
-	{ok, {{one_for_one, 5, 60}, Procs}}.
+  error_logger:info_msg("~p [~p] Starting...\n", [?MODULE, self()]),
+  Queue = {async_queue, {async_queue, start, []}, permanent, infinity, worker, [async_queue]},
+  {ok, {{simple_one_for_one, 10, 60}, [Queue]}}.
 
 %% ====================================================================
 %% Internal functions

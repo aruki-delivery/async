@@ -17,4 +17,4 @@
 -define(job(Fun), {job, Fun}).
 -define(request(From, Ref, Msg), {request, From, Ref, Msg}).
 -define(response(Ref, Value), {response, Ref, Value}).
--define(DEFAULT_JOB_QUEUE, async_default_queue).
+-define(DEFAULT_JOB_QUEUE, '$async_default_queue').

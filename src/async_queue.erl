@@ -22,17 +22,38 @@
 %% API functions
 %% ====================================================================
 
--export([start_link/0, start/0]).
+-export([start_link/0, start_link/1, start_link/2, start/0, start/1, start/2]).
 -export([run/2, run/4]).
 -export([running_count/1, queue_size/1]).
 
--export([init/1, system_continue/3, system_terminate/4, system_code_change/4]).
+-export([init/1, init/2, init/3]).
+-export([system_continue/3, system_terminate/4, system_code_change/4]).
 
 start_link() ->
   proc_lib:start_link(?MODULE, init, [self()]).
 
+start_link(Max) when is_integer(Max) ->
+  proc_lib:start_link(?MODULE, init, [self(), Max]);
+start_link(Name) when is_atom(Name) ->
+  proc_lib:start_link(?MODULE, init, [self(), Name]);
+start_link(_) -> {error, invalid_request}.
+
+start_link(Name, Max) when is_atom(Name), is_integer(Max) ->
+  proc_lib:start_link(?MODULE, init, [self(), Name, Max]);
+start_link(_, _) -> {error, invalid_request}.
+
 start() ->
   proc_lib:start(?MODULE, init, [self()]).
+
+start(Max) when is_integer(Max) ->
+  proc_lib:start(?MODULE, init, [self(), Max]);
+start(Name) when is_atom(Name) ->
+  proc_lib:start(?MODULE, init, [self(), Name]);
+start(_) -> {error, invalid_request}.
+
+start(Name, Max) when is_atom(Name), is_integer(Max) ->
+  proc_lib:start(?MODULE, init, [self(), Name, Max]);
+start(_, _) -> {error, invalid_request}.
 
 % functions
 
@@ -56,10 +77,20 @@ queue_size(_Pid) -> {error, invalid_request}.
 -record(state, {queue, count, max}).
 
 init(Parent) ->
+  Max = get_default_max_processes(),
+  init(Parent, Max).
+
+init(Parent, Name, Max) ->
+  register(Name, self()),
+  error_logger:info_msg("~p starting on [~p]...\n", [Name, self()]),
+  init(Parent, Max).
+
+init(Parent, Name) when is_atom(Name) ->
+  Max = get_default_max_processes(),
+  init(Parent, Name, Max);
+init(Parent, Max) ->
   Debug = sys:debug_options([]),
   proc_lib:init_ack({ok, self()}),
-  {ok, Multiplier} = application:get_env(async, processes_by_core),
-  Max = erlang:system_info(schedulers) * Multiplier,
   State = #state{queue = queue:new(), count = 0, max = Max},
   loop(Parent, Debug, State).
 
@@ -87,7 +118,7 @@ system_continue(Parent, Debug, State) -> loop(Parent, Debug, State).
 system_terminate(Reason, _Parent, _Debug, _State) -> exit(Reason).
 system_code_change(State, _Module, _OldVsn, _Extra) -> {ok, State}.
 
-handle_terminated(Ref, State = #state{queue = Queue, count = Count}) ->
+handle_terminated(_Ref, State = #state{queue = Queue, count = Count}) ->
   case queue:out(Queue) of
     {empty, _} -> State#state{count = Count - 1};
     {{value, Fun}, NewQueue} ->
@@ -103,16 +134,16 @@ process(Fun, State = #state{count = Count}) ->
   State#state{count = Count + 1}.
 
 handle_request(From, Ref, Request, State) ->
-  spawn(fun() ->
-    Reply = get_reply(Request, State),
-    From ! ?response(Ref, Reply)
-        end).
+  Reply = get_reply(Request, State),
+  From ! ?response(Ref, Reply).
 
-get_reply(running, #state{count = Count}) ->
-  Count;
-get_reply(size, #state{queue = Queue}) ->
-  queue:len(Queue);
+get_reply(running, #state{count = Count}) -> Count;
+get_reply(size, #state{queue = Queue}) -> queue:len(Queue);
 get_reply(_Request, _State) -> {error, invalid_request}.
+
+get_default_max_processes() ->
+  {ok, Multiplier} = application:get_env(async, processes_by_core),
+  erlang:system_info(schedulers) * Multiplier.
 
 send_job(Pid, Fun) ->
   Pid ! ?job(Fun),

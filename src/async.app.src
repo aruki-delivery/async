@@ -20,7 +20,7 @@
 	{modules, [
 	]},
 	{registered, [ 
-		async
+		async_queue_sup
 	]},
 	{applications, [
 		kernel, 
