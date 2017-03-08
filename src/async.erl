@@ -1,5 +1,5 @@
 %%
-%% Copyright 2015-16 Joaquim Rocha <jrocha@gmailbox.org>
+%% Copyright 2015-17 Joaquim Rocha <jrocha@gmailbox.org>
 %% 
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -16,59 +16,101 @@
 
 -module(async).
 
--include("async.hrl").
+-behaviour(application).
+-behaviour(supervisor).
+
+-define(SERVER, {local, ?MODULE}).
+-define(DEFAULT_JOB_QUEUE, '$async_default_queue').
+
+%% ====================================================================
+%% Behavioural
+%% ====================================================================
+% application
+-export([start/2, stop/1]).
+
+% supervisor
+-export([init/1]).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
-
+-export([start_link/0]).
+-export([start_queue/1, start_queue/2, stop_queue/1, queue_list/0]).
 -export([run/1, run/2, run/3, run/4]).
--export([running_count/0, running_count/1, queue_size/0, queue_size/1]).
 
-% functions
+start_link() -> 
+	supervisor:start_link(?SERVER, ?MODULE, []).
 
-run(Fun) when is_function(Fun, 0) -> run(?DEFAULT_JOB_QUEUE, Fun);
+start_queue(JobQueue) -> 
+	start_queue(JobQueue, [{hibernate, 5000}]).
+
+start_queue(JobQueue, Options) -> 
+	supervisor:start_child(?MODULE, [{local, JobQueue}, Options]).
+
+stop_queue(JobQueue) -> 
+	case whereis(JobQueue) of
+		undefined -> ok;
+		Pid -> 
+			supervisor:terminate_child(?MODULE, Pid),
+			ok
+	end.
+
+queue_list() ->
+	ChildList = supervisor:which_children(?MODULE),
+	lists:filtermap(fun({_, Pid, _, _}) ->
+			case erlang:process_info(Pid, registered_name) of
+				{registered_name, Name} -> {true, Name}; 
+				_ -> false
+			end
+		end, ChildList).
+
+run(Fun) when is_function(Fun, 0) -> 
+	run(?DEFAULT_JOB_QUEUE, Fun);
 run(_Fun) -> {error, invalid_function}.
 
 run(JobQueue, Fun) when is_atom(JobQueue), is_function(Fun, 0) ->
-  case get_pid(JobQueue) of
-    {ok, Pid} -> async_queue:run(Pid, Fun);
-    Other -> Other
-  end;
+	case find_or_create(JobQueue) of
+		{ok, Pid} -> async_queue:push(Pid, Fun);
+		Other -> Other
+	end;
 run(_JobQueue, _Fun) -> {error, invalid_function}.
 
 run(Module, Function, Args) when is_atom(Module), is_atom(Function), is_list(Args) ->
-  run(?DEFAULT_JOB_QUEUE, Module, Function, Args);
+	run(?DEFAULT_JOB_QUEUE, Module, Function, Args);
 run(_Module, _Function, _Args) -> {error, invalid_request}.
 
 run(JobQueue, Module, Function, Args) when is_atom(JobQueue), is_atom(Module), is_atom(Function), is_list(Args) ->
-  run(JobQueue, fun() -> apply(Module, Function, Args) end);
+	run(JobQueue, fun() -> apply(Module, Function, Args) end);
 run(_JobQueue, _Module, _Function, _Args) -> {error, invalid_request}.
 
-running_count() -> running_count(?DEFAULT_JOB_QUEUE).
+%% ====================================================================
+%% Behavioural application functions
+%% ====================================================================
 
-running_count(JobQueue) when is_atom(JobQueue) ->
-  case whereis(JobQueue) of
-    undefined -> 0;
-    Pid -> async_queue:running_count(Pid)
-  end;
-running_count(_JobQueue) -> {error, invalid_request}.
+start(_Type, _StartArgs) ->
+	{ok, Pid} = ?MODULE:start_link(),
+	{ok, Pid}.
 
-queue_size() -> queue_size(?DEFAULT_JOB_QUEUE).
+stop(_State) ->
+	ok.
 
-queue_size(JobQueue) when is_atom(JobQueue) ->
-  case whereis(JobQueue) of
-    undefined -> 0;
-    Pid -> async_queue:queue_size(Pid)
-  end;
-queue_size(_JobQueue) -> {error, invalid_request}.
+%% ====================================================================
+%% Behavioural supervisor functions
+%% ====================================================================
+
+init([]) ->
+	error_logger:info_msg("~p starting on [~p]...\n", [?MODULE, self()]),
+	JobQueue = #{id => async_queue, start => {async_queue, start_link, []}, restart => permanent, type => worker},
+	SupFlags = #{strategy => simple_one_for_one, intensity => 2, period => 10},
+	Procs = [JobQueue],
+	{ok, {SupFlags, Procs}}.
 
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
 
-get_pid(JobQueue) ->
-  case whereis(JobQueue) of
-    undefined -> async_queue_sup:start_queue(JobQueue);
-    Pid -> {ok, Pid}
-  end.
+find_or_create(JobQueue) ->
+	case whereis(JobQueue) of
+		undefined -> ?MODULE:start_queue(JobQueue);
+		Pid -> {ok, Pid}
+	end.

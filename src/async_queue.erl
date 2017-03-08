@@ -1,6 +1,6 @@
 %%
-%% Copyright 2016 Joaquim Rocha <jrocha@gmailbox.org>
-%% 
+%% Copyright 2016-17 Joaquim Rocha <jrocha@gmailbox.org>
+%%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
 %% You may obtain a copy of the License at
@@ -16,143 +16,126 @@
 
 -module(async_queue).
 
--include("async.hrl").
+-behaviour(gen_server).
 
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 %% ====================================================================
 %% API functions
 %% ====================================================================
+-export([start/1, start/2]).
+-export([start_link/1, start_link/2]).
+-export([stop/1, stop/3]).
 
--export([start_link/0, start_link/1, start_link/2, start/0, start/1, start/2]).
--export([run/2, run/4]).
--export([running_count/1, queue_size/1]).
+-export([flush/1]).
+-export([queue_size/1]).
+-export([running_count/1]).
+-export([push/2]).
 
--export([init/1, init/2, init/3]).
--export([system_continue/3, system_terminate/4, system_code_change/4]).
+start(Options) -> 
+	gen_server:start(?MODULE, Options, []).
 
-start_link() ->
-  proc_lib:start_link(?MODULE, init, [self()]).
+start(Name, Options) -> 
+	gen_server:start(Name, ?MODULE, Options, []).
 
-start_link(Max) when is_integer(Max) ->
-  proc_lib:start_link(?MODULE, init, [self(), Max]);
-start_link(Name) when is_atom(Name) ->
-  proc_lib:start_link(?MODULE, init, [self(), Name]);
-start_link(_) -> {error, invalid_request}.
+start_link(Options) -> 
+	gen_server:start_link(?MODULE, Options, []).
 
-start_link(Name, Max) when is_atom(Name), is_integer(Max) ->
-  proc_lib:start_link(?MODULE, init, [self(), Name, Max]);
-start_link(_, _) -> {error, invalid_request}.
+start_link(Name, Options) -> 
+	gen_server:start_link(Name, ?MODULE, Options, []).
 
-start() ->
-  proc_lib:start(?MODULE, init, [self()]).
+stop(Process) -> stop(Process, normal, infinity).
 
-start(Max) when is_integer(Max) ->
-  proc_lib:start(?MODULE, init, [self(), Max]);
-start(Name) when is_atom(Name) ->
-  proc_lib:start(?MODULE, init, [self(), Name]);
-start(_) -> {error, invalid_request}.
+stop(Process, Reason, Timeout) -> 
+	gen_server:stop(Process, Reason, Timeout).
 
-start(Name, Max) when is_atom(Name), is_integer(Max) ->
-  proc_lib:start(?MODULE, init, [self(), Name, Max]);
-start(_, _) -> {error, invalid_request}.
+flush(Process) -> gen_server:cast(Process, flush).
 
-% functions
+queue_size(Process) -> gen_server:call(Process, queue_size).
 
-run(Pid, Fun) when is_pid(Pid), is_function(Fun, 0) -> send_job(Pid, Fun);
-run(_Pid, _Fun) -> {error, invalid_function}.
+running_count(Process) -> gen_server:call(Process, running_count).
 
-run(Pid, Module, Function, Args) when is_pid(Pid), is_atom(Module), is_atom(Function), is_list(Args) ->
-  run(Pid, fun() -> apply(Module, Function, Args) end);
-run(_Pid, _Module, _Function, _Args) -> {error, invalid_request}.
+push(Process, Fun) -> gen_server:cast(Process, {push, Fun}).
 
-running_count(Pid) when is_pid(Pid) -> call(Pid, running);
-running_count(_Pid) -> {error, invalid_request}.
+%% ====================================================================
+%% Behavioural functions
+%% ====================================================================
+-record(state, {queue, count, pool_size, priority, hibernate}).
 
-queue_size(Pid) when is_pid(Pid) -> call(Pid, size);
-queue_size(_Pid) -> {error, invalid_request}.
+%% init/1
+init(Options) ->
+	Default = #state{
+			queue=queue:new(),
+			count=0,
+			pool_size=erlang:system_info(schedulers),
+			priority=normal,
+			hibernate=infinity
+			},
+	do_init(Options, Default).
+
+%% handle_call/3
+handle_call(queue_size, _From, State=#state{queue=Queue}) ->
+	Reply = {ok, queue:len(Queue)},
+	{reply, Reply, State};
+
+handle_call(running_count, _From, State=#state{count=Count}) ->
+	Reply = {ok, Count},
+	{reply, Reply, State};
+
+handle_call(_Request, _From, State) ->
+	{noreply, State}.
+
+%% handle_cast/2
+handle_cast({push, Fun}, State=#state{pool_size=Max, queue=Queue, count=Max}) ->
+	NewQueue = queue:in(Fun, Queue),
+	{noreply, State#state{queue=NewQueue}};
+handle_cast({push, Fun}, State=#state{priority=Priority, count=Count}) ->
+	run(Fun, Priority),
+	{noreply, State#state{count=Count + 1}};
+
+handle_cast(flush, State) ->
+	NewQueue = queue:new(),
+	{noreply, State#state{queue=NewQueue}};
+
+handle_cast(_Msg, State) ->
+	{noreply, State}.
+
+%% handle_info/2
+handle_info({'DOWN', _, _, _, _}, State=#state{priority=Priority, hibernate=Timeout, queue=Queue, count=Count}) ->
+	case queue:out(Queue) of
+		{empty, _} when Count =:= 1 -> 
+			{noreply, State#state{count=0}, Timeout};
+		{empty, _} -> 
+			{noreply, State#state{count=Count - 1}};
+		{{value, Fun}, NewQueue} ->
+			run(Fun, Priority),
+			{noreply, State#state{queue=NewQueue}}
+	end;
+
+handle_info(timeout, State) ->
+	{noreply, State, hibernate};
+
+handle_info(_Info, State) ->
+	{noreply, State}.
+
+%% terminate/2
+terminate(_Reason, _State) ->
+	ok.
+
+%% code_change/3
+code_change(_OldVsn, State, _Extra) ->
+	{ok, State}.
 
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
+do_init([], State=#state{hibernate=infinity}) -> {ok, State};
+do_init([], State=#state{hibernate=Timeout}) -> {ok, State, Timeout};
+do_init([{pool_size, Value}|T], State) when is_integer(Value), Value > 0 -> 
+	do_init(T, State#state{pool_size=Value});
+do_init([{priority, Value}|T], State) when Value=:=low; Value=:=normal; Value=:=high; Value=:=max -> 
+	do_init(T, State#state{priority=Value});
+do_init([{hibernate, Value}|T], State) when (is_integer(Value) andalso Value > 0) orelse Value=:=infinity -> 
+	do_init(T, State#state{hibernate=Value});
+do_init(_, _) -> {stop, invalid_options}.
 
--record(state, {queue, count, max}).
-
-init(Parent) ->
-  Max = get_default_max_processes(),
-  init(Parent, Max).
-
-init(Parent, Name, Max) ->
-  register(Name, self()),
-  error_logger:info_msg("~p starting on [~p]...\n", [Name, self()]),
-  init(Parent, Max).
-
-init(Parent, Name) when is_atom(Name) ->
-  Max = get_default_max_processes(),
-  init(Parent, Name, Max);
-init(Parent, Max) ->
-  Debug = sys:debug_options([]),
-  proc_lib:init_ack({ok, self()}),
-  State = #state{queue = queue:new(), count = 0, max = Max},
-  loop(Parent, Debug, State).
-
-loop(Parent, Debug, State) ->
-  Msg = receive
-          Input -> Input
-        end,
-  handle_msg(Msg, Parent, Debug, State).
-
-handle_msg({system, From, Request}, Parent, Debug, State) ->
-  sys:handle_system_msg(Request, From, Parent, ?MODULE, Debug, State);
-handle_msg({'DOWN', Ref, _, _, _}, Parent, Debug, State) ->
-  NewState = handle_terminated(Ref, State),
-  loop(Parent, Debug, NewState);
-handle_msg(?job(Fun), Parent, Debug, State) ->
-  NewState = process(Fun, State),
-  loop(Parent, Debug, NewState);
-handle_msg(?request(From, Ref, Request), Parent, Debug, State) ->
-  handle_request(From, Ref, Request, State),
-  loop(Parent, Debug, State);
-handle_msg(_Msg, Parent, Debug, State) ->
-  loop(Parent, Debug, State).
-
-system_continue(Parent, Debug, State) -> loop(Parent, Debug, State).
-system_terminate(Reason, _Parent, _Debug, _State) -> exit(Reason).
-system_code_change(State, _Module, _OldVsn, _Extra) -> {ok, State}.
-
-handle_terminated(_Ref, State = #state{queue = Queue, count = Count}) ->
-  case queue:out(Queue) of
-    {empty, _} -> State#state{count = Count - 1};
-    {{value, Fun}, NewQueue} ->
-      {_, _NewRef} = erlang:spawn_monitor(Fun),
-      State#state{queue = NewQueue}
-  end.
-
-process(Fun, State = #state{queue = Queue, count = Max, max = Max}) ->
-  NewQueue = queue:in(Fun, Queue),
-  State#state{queue = NewQueue};
-process(Fun, State = #state{count = Count}) ->
-  {_, _Ref} = erlang:spawn_monitor(Fun),
-  State#state{count = Count + 1}.
-
-handle_request(From, Ref, Request, State) ->
-  Reply = get_reply(Request, State),
-  From ! ?response(Ref, Reply).
-
-get_reply(running, #state{count = Count}) -> Count;
-get_reply(size, #state{queue = Queue}) -> queue:len(Queue);
-get_reply(_Request, _State) -> {error, invalid_request}.
-
-get_default_max_processes() ->
-  {ok, Multiplier} = application:get_env(async, processes_by_core),
-  erlang:system_info(schedulers) * Multiplier.
-
-send_job(Pid, Fun) ->
-  Pid ! ?job(Fun),
-  ok.
-
-call(Pid, Msg) ->
-  Ref = make_ref(),
-  Pid ! ?request(self(), Ref, Msg),
-  receive
-    ?response(Ref, Value) -> Value
-  after 5000 -> {error, timeout}
-  end.
+run(Fun, Priority) -> spawn_opt(Fun, [monitor, {priority, Priority}]).

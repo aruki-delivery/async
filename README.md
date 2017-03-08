@@ -1,6 +1,6 @@
 async
 =====
-*Asynchronous function execution*
+*Asynchronous execution*
 
 Async consists on a worker pool for asynchronous execution of tasks (i.e. functions).
 This utility should be useful for background tasks execution, without risking overloading the system by starting to many process.

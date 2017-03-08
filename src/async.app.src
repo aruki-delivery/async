@@ -1,5 +1,5 @@
 %%
-%% Copyright 2015-16 Joaquim Rocha <jrocha@gmailbox.org>
+%% Copyright 2015-17 Joaquim Rocha <jrocha@gmailbox.org>
 %% 
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -15,19 +15,18 @@
 %%
 
 {application, async, [
-	{description, "Asynchronous function execution"},
-	{vsn, "0.5.0"},
+	{description, "Asynchronous execution"},
+	{vsn, "0.6.0"},
 	{modules, [
 	]},
 	{registered, [ 
-		async_queue_sup
+		async
 	]},
 	{applications, [
 		kernel, 
 		stdlib
 	]},
-	{mod, {async_app, []}},
+	{mod, {async, []}},
 	{env, [
-		{processes_by_core, 1}
 	]}
 ]}.
