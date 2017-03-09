@@ -31,30 +31,118 @@
 -export([running_count/1]).
 -export([push/2]).
 
+%% Starts a queue instance
+%% Options: pool_size - Max number of processes (defaults to erlang:system_info(schedulers)) 
+%%          priority - Proccess priority valid values: low, normal, high, max (defaults to normal)
+%%          hibernate - Max wait time (in milliseconds) for a message before the process goes to hibernation (defaults to infinity)
+-spec start(Options) -> {ok, Pid} | {error, Error}
+	when Options :: [Option],
+		 Pid :: pid(),
+		 Error :: term(),
+		 Option :: {Key, Value},
+		 Key :: pool_size | priority | hibernate,
+		 Value :: term().
 start(Options) -> 
 	gen_server:start(?MODULE, Options, []).
 
+%% Starts a registered queue instance
+-spec start(Name, Options) -> {ok, Pid} | {error, Error}
+	when Name :: {local, Name :: atom()} 
+			| {global, GlobalName :: atom()} 
+			| {via, Module :: atom(), ViaName :: atom()},
+		 Options :: [Option],
+		 Pid :: pid(),
+		 Error :: term(),
+		 Option :: {Key, Value},
+		 Key :: pool_size | priority | hibernate,
+		 Value :: term().
 start(Name, Options) -> 
 	gen_server:start(Name, ?MODULE, Options, []).
 
+%% Starts a queue linked instance
+-spec start_link(Options) -> {ok, Pid} | {error, Error}
+	when Options :: [Option],
+		 Pid :: pid(),
+		 Error :: term(),
+		 Option :: {Key, Value},
+		 Key :: pool_size | priority | hibernate,
+		 Value :: term().
 start_link(Options) -> 
 	gen_server:start_link(?MODULE, Options, []).
 
+%% Starts a registered and linked queue instance
+-spec start_link(Name, Options) -> {ok, Pid} | {error, Error}
+	when Name :: {local, Name :: atom()} 
+			| {global, GlobalName :: atom()} 
+			| {via, Module :: atom(), ViaName :: atom()},
+		 Options :: [Option],
+		 Pid :: pid(),
+		 Error :: term(),
+		 Option :: {Key, Value},
+		 Key :: pool_size | priority | hibernate,
+		 Value :: term().
 start_link(Name, Options) -> 
 	gen_server:start_link(Name, ?MODULE, Options, []).
 
-stop(Process) -> stop(Process, normal, infinity).
+%% Stop a queue
+-spec stop(ServerRef) -> ok
+	when ServerRef :: Name :: atom() 
+		| {Name :: atom(), Node :: atom()} 
+		| {global, GlobalName :: atom()} 
+		| {via, Module :: atom(), ViaName :: atom()} 
+		| pid().
+stop(ServerRef) -> stop(ServerRef, normal, infinity).
 
-stop(Process, Reason, Timeout) -> 
-	gen_server:stop(Process, Reason, Timeout).
+%% Orders a queue to exit with the specified Reason and waits for it to terminate
+-spec stop(ServerRef, Reason, Timeout) -> ok
+	when ServerRef :: Name :: atom() 
+		| {Name :: atom(), Node :: atom()} 
+		| {global, GlobalName :: atom()} 
+		| {via, Module :: atom(), ViaName :: atom()} 
+		| pid(),
+		Reason :: term(),
+		Timeout :: integer() | infinity.
+stop(ServerRef, Reason, Timeout) -> 
+	gen_server:stop(ServerRef, Reason, Timeout).
 
-flush(Process) -> gen_server:cast(Process, flush).
+%% Removes all requests waiting to be executed
+-spec flush(ServerRef) -> ok
+	when ServerRef :: Name :: atom() 
+		| {Name :: atom(), Node :: atom()} 
+		| {global, GlobalName :: atom()} 
+		| {via, Module :: atom(), ViaName :: atom()} 
+		| pid().
+flush(ServerRef) -> gen_server:cast(ServerRef, flush).
 
-queue_size(Process) -> gen_server:call(Process, queue_size).
+%% Returns que number of requests waiting to be executed
+-spec queue_size(ServerRef) -> {ok, Size}
+	when ServerRef :: Name :: atom() 
+		| {Name :: atom(), Node :: atom()} 
+		| {global, GlobalName :: atom()} 
+		| {via, Module :: atom(), ViaName :: atom()} 
+		| pid(),
+		Size :: integer().
+queue_size(ServerRef) -> gen_server:call(ServerRef, queue_size).
 
-running_count(Process) -> gen_server:call(Process, running_count).
+%% Returns que number of processes running
+-spec running_count(ServerRef) -> {ok, Count}
+	when ServerRef :: Name :: atom() 
+		| {Name :: atom(), Node :: atom()} 
+		| {global, GlobalName :: atom()} 
+		| {via, Module :: atom(), ViaName :: atom()} 
+		| pid(),
+		Count :: integer().
+running_count(ServerRef) -> gen_server:call(ServerRef, running_count).
 
-push(Process, Fun) -> gen_server:cast(Process, {push, Fun}).
+%% Push a request to the queue 
+-spec push(ServerRef, Fun) -> ok
+	when ServerRef :: Name :: atom() 
+		| {Name :: atom(), Node :: atom()} 
+		| {global, GlobalName :: atom()} 
+		| {via, Module :: atom(), ViaName :: atom()} 
+		| pid(),
+		Fun :: fun(() -> any()).
+push(ServerRef, Fun) -> gen_server:cast(ServerRef, {push, Fun}).
 
 %% ====================================================================
 %% Behavioural functions
@@ -64,12 +152,12 @@ push(Process, Fun) -> gen_server:cast(Process, {push, Fun}).
 %% init/1
 init(Options) ->
 	Default = #state{
-			queue=queue:new(),
-			count=0,
-			pool_size=erlang:system_info(schedulers),
-			priority=normal,
-			hibernate=infinity
-			},
+					 queue=queue:new(),
+					 count=0,
+					 pool_size=erlang:system_info(schedulers),
+					 priority=normal,
+					 hibernate=infinity
+					},
 	do_init(Options, Default).
 
 %% handle_call/3
@@ -128,14 +216,18 @@ code_change(_OldVsn, State, _Extra) ->
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
-do_init([], State=#state{hibernate=infinity}) -> {ok, State};
-do_init([], State=#state{hibernate=Timeout}) -> {ok, State, Timeout};
+do_init([], State=#state{hibernate=infinity}) -> 
+	{ok, State};
+do_init([], State=#state{hibernate=Timeout}) -> 
+	{ok, State, Timeout};
 do_init([{pool_size, Value}|T], State) when is_integer(Value), Value > 0 -> 
 	do_init(T, State#state{pool_size=Value});
 do_init([{priority, Value}|T], State) when Value=:=low; Value=:=normal; Value=:=high; Value=:=max -> 
 	do_init(T, State#state{priority=Value});
 do_init([{hibernate, Value}|T], State) when (is_integer(Value) andalso Value > 0) orelse Value=:=infinity -> 
 	do_init(T, State#state{hibernate=Value});
-do_init(_, _) -> {stop, invalid_options}.
+do_init(_, _) -> 
+	{stop, invalid_options}.
 
-run(Fun, Priority) -> spawn_opt(Fun, [monitor, {priority, Priority}]).
+run(Fun, Priority) -> 
+	spawn_opt(Fun, [monitor, {priority, Priority}]).

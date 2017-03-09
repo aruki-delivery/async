@@ -21,6 +21,8 @@
 -define(EXIT_REASON(Reason), {'$async_pool_exit', Reason}).
 -define(STOP_REASON(Reason), {'$async_pool_stop', Reason}).
 
+-define(ASYNC_QUEUE_REQUEST, '$async_pool_queue_request').
+
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %% ====================================================================
@@ -59,6 +61,7 @@
 -export([start/3, start/4]).
 -export([stop/1, stop/3]).
 -export([call/2, call/3, cast/2]).
+-export([queue_size/1, running_count/1, flush_pending/1]).
 
 start_link(Mod, Args, Options) ->
 	gen_server:start_link(?MODULE, [Mod, Args, Options], []).
@@ -87,6 +90,24 @@ call(Process, Msg, Timeout) ->
 cast(Process, Msg) ->
 	gen_server:cast(Process, Msg).
 
+queue_size(Process) ->
+	case async_queue(Process) of
+		{ok, Pid} -> async_queue:queue_size(Pid);
+		_ -> {error, queue_not_found}
+	end.
+
+running_count(Process) ->
+	case async_queue(Process) of
+		{ok, Pid} -> async_queue:running_count(Pid);
+		_ -> {error, queue_not_found}
+	end.
+
+flush_pending(Process) ->
+	case async_queue(Process) of
+		{ok, Pid} -> async_queue:flush(Pid);
+		_ -> {error, queue_not_found}
+	end.
+
 %% ====================================================================
 %% Behavioural functions
 %% ====================================================================
@@ -105,33 +126,37 @@ init([Mod, Args, Options]) ->
 	end.
 
 %% handle_call/3
+handle_call(?ASYNC_QUEUE_REQUEST, _From, State=#state{queue=Pid}) ->
+	Reply = {ok, Pid},
+	{reply, Reply, State};
+
 handle_call(Request, From, State=#state{queue=Pid, mod=Mod, data=Data}) ->
 	Server = self(),
 	async_queue:push(Pid, fun() ->
-				try Mod:handle_call(Request, Data) of
-					{reply, Reply} -> gen_server:reply(From, Reply);
-					noreply -> ok;
-					{stop, Reason, Reply} ->
-						gen_server:reply(From, Reply),
-						send_stop(Server, Reason);
-					{stop, Reason} -> send_stop(Server, Reason);
-					Other -> send_exit(Server, {invalid_return, Other})
-				catch _:Reason -> send_exit(Server, Reason)
-				end
-		end),
+								  try Mod:handle_call(Request, Data) of
+									  {reply, Reply} -> gen_server:reply(From, Reply);
+									  noreply -> ok;
+									  {stop, Reason, Reply} ->
+										  gen_server:reply(From, Reply),
+										  send_stop(Server, Reason);
+									  {stop, Reason} -> send_stop(Server, Reason);
+									  Other -> send_exit(Server, {invalid_return, Other})
+								  catch _:Reason -> send_exit(Server, Reason)
+								  end
+					 end),
 	{noreply, State}.
 
 %% handle_cast/2
 handle_cast(Msg, State=#state{queue=Pid, mod=Mod, data=Data}) ->
 	Server = self(),
 	async_queue:push(Pid, fun() ->
-				try Mod:handle_cast(Msg, Data) of
-					noreply -> ok;
-					{stop, Reason} -> send_stop(Server, Reason);
-					Other -> send_exit(Server, {invalid_return, Other})
-				catch _:Reason -> send_exit(Server, Reason)
-				end
-		end),
+								  try Mod:handle_cast(Msg, Data) of
+									  noreply -> ok;
+									  {stop, Reason} -> send_stop(Server, Reason);
+									  Other -> send_exit(Server, {invalid_return, Other})
+								  catch _:Reason -> send_exit(Server, Reason)
+								  end
+					 end),
 	{noreply, State}.
 
 %% handle_info/2
@@ -144,13 +169,13 @@ handle_info({'EXIT', _FromPid, ?EXIT_REASON(Reason)}, _State) ->
 handle_info(Info, State=#state{queue=Pid, mod=Mod, data=Data}) ->
 	Server = self(),
 	async_queue:push(Pid, fun() ->
-				try Mod:handle_info(Info, Data) of
-					noreply -> ok;
-					{stop, Reason} -> send_stop(Server, Reason);
-					Other -> send_exit(Server, {invalid_return, Other})
-				catch _:Reason -> send_exit(Server, Reason)
-				end
-		end),
+								  try Mod:handle_info(Info, Data) of
+									  noreply -> ok;
+									  {stop, Reason} -> send_stop(Server, Reason);
+									  Other -> send_exit(Server, {invalid_return, Other})
+								  catch _:Reason -> send_exit(Server, Reason)
+								  end
+					 end),
 	{noreply, State}.
 
 %% terminate/2
@@ -167,6 +192,9 @@ code_change(OldVsn, State=#state{mod=Mod, data=Data}, Extra) ->
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
+
+async_queue(Process) ->
+	gen_server:call(Process, ?ASYNC_QUEUE_REQUEST).
 
 send_stop(Server, Reason) ->
 	exit(Server, ?STOP_REASON(Reason)).
