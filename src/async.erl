@@ -34,14 +34,8 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0]).
 -export([start_queue/1, start_queue/2, stop_queue/1, queue_list/0]).
 -export([run/1, run/2, run/3, run/4]).
-
-%% Start the async superviser
--spec start_link() -> supervisor:startlink_ret().
-start_link() -> 
-	supervisor:start_link(?SERVER, ?MODULE, []).
 
 %% Starts a new queue
 %% Using the options: [{hibernate, 5000}]
@@ -130,7 +124,7 @@ run(_JobQueue, _Module, _Function, _Args) -> {error, invalid_request}.
 %% ====================================================================
 
 start(_Type, _StartArgs) ->
-	{ok, Pid} = ?MODULE:start_link(),
+	{ok, Pid} = supervisor:start_link(?SERVER, ?MODULE, []),
 	{ok, Pid}.
 
 stop(_State) ->
