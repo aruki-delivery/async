@@ -28,5 +28,8 @@
 	]},
 	{mod, {async, []}},
 	{env, [
-	]}
+	]},
+	{maintainers,, ["Joaquim Rocha"]},
+	{licenses, ["Apache License 2.0"]},
+	{links, [{"Github", "https://github.com/jjmrocha/async"}]}	
 ]}.
