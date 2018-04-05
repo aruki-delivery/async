@@ -1,4 +1,4 @@
-defmodule KillBill.Mixfile do
+defmodule Async.Mixfile do
   use Mix.Project
 
   def project do
