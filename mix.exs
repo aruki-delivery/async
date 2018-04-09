@@ -3,8 +3,7 @@ defmodule Async.Mixfile do
 
   def project do
     [app: :async,
-      version: "0.1.0",
-      language: :erlang,
+      version: "1.0.0",
       deps: deps(Mix.env()),
       description: "Async consists on a worker pool for asynchronous execution of tasks (i.e. functions).",
       package: package(),
@@ -13,8 +12,21 @@ defmodule Async.Mixfile do
   end
 
   defp deps(_) do
-    [{:ex_doc, ">= 0.0.0", only: :dev}]
+    [
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:distillery, "~> 1.5", runtime: false},
+      {:mix_test_watch, "~> 0.3", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.8", only: :test},
+      {:ex_doc, ">= 0.0.0", only: :dev}
+    ]
   end
+
+
+  def application do
+    [mod: {Async.Application, []},
+      extra_applications: [:logger,],]
+  end
+
 
   def package do
     [ maintainers: ["cblage"],
