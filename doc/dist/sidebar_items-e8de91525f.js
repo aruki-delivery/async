@@ -1,1 +1,0 @@
-sidebarNodes={"extras":[{"id":"api-reference","title":"API Reference","group":"","headers":[{"id":"Modules","anchor":"modules"}]}],"exceptions":[],"modules":[{"id":"Async","title":"Async","group":"","functions":[{"id":"child_spec/1","anchor":"child_spec/1"},{"id":"start_link/1","anchor":"start_link/1"}]}],"tasks":[]}
