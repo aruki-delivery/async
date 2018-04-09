@@ -26,7 +26,7 @@ defmodule Async.Mixfile do
 
 
   def application do
-    [mod: {Async.Application, []},
+    [mod: {:async, []},
       extra_applications: [:logger,],]
   end
 
