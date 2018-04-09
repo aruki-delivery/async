@@ -8,7 +8,10 @@ defmodule Async.Mixfile do
       description: "Async consists on a worker pool for asynchronous execution of tasks (i.e. functions).",
       package: package(),
       source_url: "https://github.com/aruki-delivery/async",
-      homepage_url: "https://hex.pm/packages/async"]
+      homepage_url: "https://hex.pm/packages/async",
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [coveralls: :test],
+    ]
   end
 
   defp deps(_) do
