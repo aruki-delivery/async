@@ -3,7 +3,7 @@ defmodule AsyncTest do
   doctest Async
 
   test "can run async" do
-    :async.run(fn () ->
+    Async.run(fn () ->
       assert is_pid(self())
     end)
   end

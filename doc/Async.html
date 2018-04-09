@@ -10,7 +10,7 @@
     
       <link rel="canonical" href="https://hexdocs.pm/async/Async.html" />
     
-    <script src="dist/sidebar_items-b16408e9d9.js"></script>
+    <script src="dist/sidebar_items-e8de91525f.js"></script>
     
     
     
@@ -110,16 +110,6 @@
 </div>
 <div class="summary-row">
   <div class="summary-signature">
-    <a href="#init/1">init(state)</a>
-  </div>
-  
-    <div class="summary-synopsis"><p>Invoked when the server is started. <code class="inline">start_link/3</code> or <code class="inline">start/3</code> will
-block until it returns</p>
-</div>
-  
-</div>
-<div class="summary-row">
-  <div class="summary-signature">
     <a href="#start_link/1">start_link(state)</a>
   </div>
   
@@ -165,59 +155,6 @@ block until it returns</p>
   <section class="docstring">
     <p>Returns a specification to start this module under a supervisor.</p>
 <p>See <a href="https://hexdocs.pm/elixir/Supervisor.html"><code class="inline">Supervisor</code></a>.</p>
-
-  </section>
-</div>
-<div class="detail" id="init/1">
-  
-  
-  <div class="detail-header">
-    <a href="#init/1" class="detail-link" title="Link to this function">
-      <span class="icon-link" aria-hidden="true"></span>
-      <span class="sr-only">Link to this function</span>
-    </a>
-    <span class="signature">init(state)</span>
-    
-      <a href="https://github.com/aruki-delivery/async/blob/master/lib/async.ex#L14" class="view-source" rel="help" title="View Source">
-       <span class="icon-code" aria-hidden="true"></span>
-       <span class="sr-only">View Source</span>
-     </a>
-    
-    
-    
-  </div>
-  <section class="docstring">
-    <p>Invoked when the server is started. <code class="inline">start_link/3</code> or <code class="inline">start/3</code> will
-block until it returns.</p>
-<p><code class="inline">args</code> is the argument term (second argument) passed to <code class="inline">start_link/3</code>.</p>
-<p>Returning <code class="inline">{:ok, state}</code> will cause <code class="inline">start_link/3</code> to return
-<code class="inline">{:ok, pid}</code> and the process to enter its loop.</p>
-<p>Returning <code class="inline">{:ok, state, timeout}</code> is similar to <code class="inline">{:ok, state}</code>
-except <code class="inline">handle_info(:timeout, state)</code> will be called after <code class="inline">timeout</code>
-milliseconds if no messages are received within the timeout.</p>
-<p>Returning <code class="inline">{:ok, state, :hibernate}</code> is similar to
-<code class="inline">{:ok, state}</code> except the process is hibernated before entering the loop. See
-<code class="inline">c:handle_call/3</code> for more information on hibernation.</p>
-<p>Returning <code class="inline">:ignore</code> will cause <code class="inline">start_link/3</code> to return <code class="inline">:ignore</code> and the
-process will exit normally without entering the loop or calling <code class="inline">c:terminate/2</code>.
-If used when part of a supervision tree the parent supervisor will not fail
-to start nor immediately try to restart the <a href="https://hexdocs.pm/elixir/GenServer.html"><code class="inline">GenServer</code></a>. The remainder of the
-supervision tree will be (re)started and so the <a href="https://hexdocs.pm/elixir/GenServer.html"><code class="inline">GenServer</code></a> should not be
-required by other processes. It can be started later with
-<a href="https://hexdocs.pm/elixir/Supervisor.html#restart_child/2"><code class="inline">Supervisor.restart_child/2</code></a> as the child specification is saved in the parent
-supervisor. The main use cases for this are:</p>
-<ul>
-<li>The <a href="https://hexdocs.pm/elixir/GenServer.html"><code class="inline">GenServer</code></a> is disabled by configuration but might be enabled later.
-</li>
-<li>An error occurred and it will be handled by a different mechanism than the
-   <a href="https://hexdocs.pm/elixir/Supervisor.html"><code class="inline">Supervisor</code></a>. Likely this approach involves calling <a href="https://hexdocs.pm/elixir/Supervisor.html#restart_child/2"><code class="inline">Supervisor.restart_child/2</code></a>
-after a delay to attempt a restart.
-</li>
-</ul>
-<p>Returning <code class="inline">{:stop, reason}</code> will cause <code class="inline">start_link/3</code> to return
-<code class="inline">{:error, reason}</code> and the process to exit with reason <code class="inline">reason</code> without
-entering the loop or calling <code class="inline">c:terminate/2</code>.</p>
-<p>Callback implementation for <a href="https://hexdocs.pm/elixir/GenServer.html#c:init/1"><code class="inline">GenServer.init/1</code></a>.</p>
 
   </section>
 </div>
