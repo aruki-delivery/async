@@ -30,8 +30,4 @@ use Mix.Config
 #     import_config "#{Mix.env}.exs"
 
 config :async,
-   master_nodes: [],
-   refresh_interval: 10_000,
-   gossip_interval: 6_0000,
-   udp_port: 38077,
-   interface: "*"
+   processes_by_core: 5

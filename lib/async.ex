@@ -4,12 +4,10 @@ defmodule Async do
 
 
   def start_link(state) do
-    import Supervisor.Spec
     Logger.info("#{__MODULE__}.start_link(#{inspect state})...")
-    Logger.info("#{__MODULE__} starting :async_sup...")
-    children = [supervisor(:async, []),]
+    children = []
     {:ok, super_pid} = Supervisor.start_link(children, [strategy: :one_for_one, name: Async.Supervisor])
-    Logger.info("#{__MODULE__} started :async_sup: #{inspect super_pid}")
+    Logger.info("#{__MODULE__} started: #{inspect super_pid}")
     {:ok, super_pid}
   end
 

@@ -34,8 +34,11 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_queue/1, start_queue/2, stop_queue/1, queue_list/0]).
+-export([start_default_queue/0, start_queue/1, start_queue/2, stop_queue/1, queue_list/0]).
 -export([run/1, run/2, run/3, run/4]).
+
+start_default_queue() ->
+	start_queue(?DEFAULT_JOB_QUEUE).
 
 %% Starts a new queue
 %% Using the options: [{hibernate, 5000}]
@@ -124,10 +127,12 @@ run(_JobQueue, _Module, _Function, _Args) -> {error, invalid_request}.
 %% ====================================================================
 
 start(_Type, _StartArgs) ->
+	error_logger:info_msg("~p:start(_, _): Starting supervisor link...", [?MODULE]),
 	{ok, Pid} = supervisor:start_link(?SERVER, ?MODULE, []),
 	{ok, Pid}.
 
 stop(_State) ->
+	error_logger:info_msg("~p:stop(_): stopping...", [?MODULE]),
 	ok.
 
 %% ====================================================================
@@ -135,6 +140,7 @@ stop(_State) ->
 %% ====================================================================
 
 init([]) ->
+	error_logger:info_msg("~p:init([]): initializing JobQueue...", [?MODULE]),
 	JobQueue = #{id => async_queue, 
 				 start => {async_queue, start_link, []}, 
 				 restart => permanent, 
