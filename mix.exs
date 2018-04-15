@@ -5,6 +5,7 @@ defmodule Async.Mixfile do
     [app: :async,
       version: "1.0.1",
       deps: deps(Mix.env()),
+      language: :erlang,
       description: "Async consists on a worker pool for asynchronous execution of tasks (i.e. functions).",
       package: package(),
       source_url: "https://github.com/aruki-delivery/async",
