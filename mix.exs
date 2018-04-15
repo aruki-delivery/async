@@ -3,7 +3,7 @@ defmodule Async.Mixfile do
 
   def project do
     [app: :async,
-      version: "1.0.1",
+      version: "2.0.0",
       deps: deps(Mix.env()),
       language: :erlang,
       description: "Async consists on a worker pool for asynchronous execution of tasks (i.e. functions).",
